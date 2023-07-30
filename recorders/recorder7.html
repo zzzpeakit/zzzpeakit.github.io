@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<!-- kind of works -->
+<html>
+<head>
+    <title>Voice Recorder</title>
+</head>
+<body>
+    <button id="record-button">Record</button>
+    <button id="reset-button">Reset</button>
+
+    <script>
+        // Initialize necessary variables
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+        let audio;
+        let isResetting = false;
+
+        const recordButton = document.getElementById("record-button");
+        const resetButton = document.getElementById("reset-button");
+
+        // Get access to the microphone
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(stream => {
+                mediaRecorder = new MediaRecorder(stream);
+
+                // Listen for data available event
+                mediaRecorder.ondataavailable = e => {
+                    // If a reset was requested, ignore this data
+                    if (isResetting) return;
+
+                    audioChunks.push(e.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    // If a reset was requested, don't start playback
+                    if (isResetting) return;
+
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+
+                    // Replay the recorded audio
+                    audio = new Audio(URL.createObjectURL(audioBlob));
+                    audio.addEventListener('ended', startRecording);
+                    audio.play().catch(err => {
+                        console.error('Could not replay audio.', err);
+                    });
+                };
+            })
+            .catch(err => {
+                console.error('Could not get access to microphone.', err);
+            });
+
+        // Event handler for the record button
+        recordButton.addEventListener('click', () => {
+//
+            isResetting = false;
+            if (isRecording) {
+                // Stop the recording and change button text
+                mediaRecorder.stop();
+                recordButton.textContent = 'Record';
+                isRecording = false;
+                audioChunks = []; // Clear audio chunks for next recording
+            } else {
+                // Stop the replay if audio is playing
+                if (audio && !audio.paused) {
+                    audio.pause();
+                    audio.currentTime = 0;
+                }
+
+                // Start a new recording
+                startRecording();
+            }
+        });
+
+        // Event handler for the reset button
+        resetButton.addEventListener('click', () => {
+            // Set the resetting flag
+            isResetting = true;
+
+            // Stop the recording or replay
+            if (isRecording) {
+                mediaRecorder.stop();
+                isRecording = false;
+            } else if (audio && !audio.paused) {
+                audio.pause();
+                audio.currentTime = 0;
+            }
+
+            // Reset the button text and clear audio chunks for next recording
+            recordButton.textContent = 'Record';
+            audioChunks = [];
+
+            // Clear the resetting flag
+//            isResetting = false;
+        });
+
+        function startRecording() {
+            // Start the recording and change button text
+            mediaRecorder.start();
+            recordButton.textContent = 'Stop';
+            isRecording = true;
+        }
+    </script>
+</body>
+</html>
+
